@@ -10,27 +10,32 @@
 
 # This function returns data set produced in steps 1-4
 getTrainAndTestData <- function(dataRootDir) {
-    # load all the features (be explicit)
-    features <- read.table(file.path(dataRootDir, "features.txt"),
-                           header = FALSE,
-                           nrows = 561,
-                           sep = " ",
-                           quote = "",
-                           col.names = c("id", "name"),
-                           colClasses = c("integer", "character"))
+    features.total = 561
+    # get only wanted features with descriptive variable names
+    features <- {
+        # load all the features (be explicit)
+        f <- read.table(file.path(dataRootDir, "features.txt"),
+                        header = FALSE,
+                        nrows = features.total,
+                        sep = " ",
+                        quote = "",
+                        col.names = c("id", "name"),
+                        colClasses = c("integer", "character"))
 
-    # filter just the features we want (mean and standard deviation)
-    featuresWanted <- features[grep("-(mean|std)\\(\\)", features$name),]
+        # filter just the features we want (mean and standard deviation)
+        wanted <- f[grep("-(mean|std)\\(\\)", f$name),]
 
-    # rename features (remove dashes and parenthesis, camel case and convert to factor)
-    featuresWanted$name <- factor(
-        gsub("-([a-zA-Z])([a-z]*)(?:\\(\\))?",
-             "\\U\\1\\E\\2",
-             featuresWanted$name,
-             perl = TRUE))
+        # rename features (remove dashes and parenthesis, camel case and convert to factor)
+        wanted$name <- factor(
+            gsub("-([a-zA-Z])([a-z]*)(?:\\(\\))?",
+                 "\\U\\1\\E\\2",
+                 wanted$name,
+                 perl = TRUE))
+        wanted
+    }
 
-    # load activities (be explicit)
     activities <- {
+        # load activities (be explicit)
         a <- read.table(file.path(dataRootDir, "activity_labels.txt"),
                         header = FALSE,
                         nrows = 6,
@@ -49,17 +54,16 @@ getTrainAndTestData <- function(dataRootDir) {
                                colClasses = "integer")[,1]
         assertthat::assert_that(all(subjects %in% 1:30))
 
-        # skip columns for features we don't need
-        colClasses <- rep("NULL", nrow(features))
-        colClasses[featuresWanted$id] = "numeric"
-        xData <- read.table(file.path(path, sprintf("X_%s.txt", dataSetName)),
-                            colClasses = colClasses)
-        colnames(xData) <- featuresWanted$name
+        colClasses <- rep("NULL", features.total) # skip columns for features we don't need
+        colClasses[features$id] = "numeric"
+        signalValues <- read.table(file.path(path, sprintf("X_%s.txt", dataSetName)),
+                                   colClasses = colClasses)
+        colnames(signalValues) <- features$name
 
-        yData <- read.table(file.path(path, sprintf("y_%s.txt", dataSetName)),
-                            colClasses = "integer")[,1]
+        act <- read.table(file.path(path, sprintf("y_%s.txt", dataSetName)),
+                          colClasses = "integer")[,1]
 
-        cbind(subject=subjects, activity=activities[yData], xData)
+        cbind(subject=subjects, activity=activities[act], signalValues)
     }
 
     rbind(loadDataSet("train"), loadDataSet("test"))
@@ -75,8 +79,8 @@ summarizeData <- function(data) {
 
 # step 4
 testAndTrainData <- getTrainAndTestData(file.path(getwd(), "UCI HAR Dataset"))
-write.table(testAndTrainData, file = "step4.txt", row.name=FALSE)
+write.table(testAndTrainData, file = "step4.txt", row.name = FALSE)
 
 # step 5
 testAndTrainDataSummary <- summarizeData(testAndTrainData)
-write.table(testAndTrainDataSummary, file = "step5.txt", row.name=FALSE)
+write.table(testAndTrainDataSummary, file = "step5.txt", row.name = FALSE)

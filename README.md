@@ -30,6 +30,14 @@ Assuming GNU make is installed:
 
     make
 
+Otherwise download and unzip `UCI HAR Dataset` and run:
+
+    Rscript run_analysis.R
+
+or (in interactive session):
+
+    source('run_analysis.R')
+
 Code Book
 ---------
 
