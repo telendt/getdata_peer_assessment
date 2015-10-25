@@ -26,7 +26,7 @@ The script assumes that the Samsung data is in the working directory.
 Usage
 -----
 
-Assuming GNU make is installed:
+If you have GNU Make installed just run:
 
     make
 
