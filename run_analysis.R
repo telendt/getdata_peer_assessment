@@ -1,3 +1,5 @@
+#!/usr/bin/env Rscript
+
 # This script:
 # 1. Merges the training and the test sets to create one data set.
 # 2. Extracts only the measurements on the mean and standard deviation
@@ -10,22 +12,26 @@
 
 # This function returns data set produced in steps 1-4
 getTrainAndTestData <- function(dataRootDir) {
+    read.txt <- function(filename, ...) {
+        read.table(file.path(dataRootDir, filename),
+                   header = FALSE,
+                   quote = "",
+                   ...)
+    }
+
     features.total = 561
     # get only wanted features with descriptive variable names
     features <- {
-        # load all the features (be explicit)
-        f <- read.table(file.path(dataRootDir, "features.txt"),
-                        header = FALSE,
-                        nrows = features.total,
-                        sep = " ",
-                        quote = "",
-                        col.names = c("id", "name"),
-                        colClasses = c("integer", "character"))
+        # load all the features
+        f <- read.txt("features.txt",
+                      nrows = features.total,
+                      col.names = c("id", "name"),
+                      colClasses = c("integer", "character"))
 
         # filter just the features we want (mean and standard deviation)
         wanted <- f[grep("-(mean|std)\\(\\)", f$name),]
 
-        # rename features (remove dashes and parenthesis, camel case and convert to factor)
+        # rename features (remove dashes and parenthesis, translate to camel case and convert to factor)
         wanted$name <- factor(
             gsub("-([a-zA-Z])([a-z]*)(?:\\(\\))?",
                  "\\U\\1\\E\\2",
@@ -35,38 +41,33 @@ getTrainAndTestData <- function(dataRootDir) {
     }
 
     activities <- {
-        # load activities (be explicit)
-        a <- read.table(file.path(dataRootDir, "activity_labels.txt"),
-                        header = FALSE,
-                        nrows = 6,
-                        sep = " ",
-                        quote = "",
-                        col.names = c("id", "name"),
-                        colClasses = c("integer", "factor"))
+        # load activities
+        a <- read.txt("activity_labels.txt",
+                      nrows = 6,
+                      col.names = c("id", "name"),
+                      colClasses = c("integer", "factor"))
         assertthat::are_equal(a$id, 1:6)
         a$name
     }
 
     # helper function that loads specific data set
-    loadDataSet <- function(dataSetName) {
-        path <- file.path(dataRootDir, dataSetName)
-        subjects <- read.table(file.path(path, sprintf("subject_%s.txt", dataSetName)),
-                               colClasses = "integer")[,1]
+    loadDataSet <- function(dataSetName, nrows = -1) {
+        path <- function(pattern) file.path(dataSetName, sprintf(pattern, dataSetName))
+
+        subjects <- read.txt(path("subject_%s.txt"), nrows = nrows, colClasses = "integer")[,1]
         assertthat::assert_that(all(subjects %in% 1:30))
 
         colClasses <- rep("NULL", features.total) # skip columns for features we don't need
         colClasses[features$id] = "numeric"
-        signalValues <- read.table(file.path(path, sprintf("X_%s.txt", dataSetName)),
-                                   colClasses = colClasses)
+        signalValues <- read.txt(path("X_%s.txt"), colClasses = colClasses)
         colnames(signalValues) <- features$name
 
-        act <- read.table(file.path(path, sprintf("y_%s.txt", dataSetName)),
-                          colClasses = "integer")[,1]
+        act <- activities[read.txt(path("y_%s.txt"), colClasses = "integer")[,1]]
 
-        cbind(subject=subjects, activity=activities[act], signalValues)
+        cbind(subject=subjects, activity=act, signalValues)
     }
 
-    rbind(loadDataSet("train"), loadDataSet("test"))
+    rbind(loadDataSet("train", nrows = 7352), loadDataSet("test", nrows = 2947))
 }
 
 # This function returns data set (summary) described in step 5.
